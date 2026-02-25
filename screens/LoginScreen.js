@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,24 +12,16 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace('Home');
-    } catch (e) {
-      Alert.alert('Hiba', e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { Alert.alert('Hiba', e.message); }
+    finally { setLoading(false); }
   };
 
   const register = async () => {
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      navigation.replace('Home');
-    } catch (e) {
-      Alert.alert('Hiba', e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { Alert.alert('Hiba', e.message); }
+    finally { setLoading(false); }
   };
 
   return (

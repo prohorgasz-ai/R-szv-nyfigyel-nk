@@ -1,32 +1,63 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db, auth } from '../firebaseConfig';
+
+const priceCache = {};
+
+async function fetchPrice(ticker) {
+  const cached = priceCache[ticker];
+  if (cached && Date.now() - cached.ts < 120000) return cached.price;
+  try {
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`);
+    const data = await res.json();
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (price) {
+      priceCache[ticker] = { price, ts: Date.now() };
+      return price;
+    }
+  } catch (e) {}
+  return null;
+}
 
 export default function HomeScreen({ navigation }) {
   const [ticker, setTicker] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [stocks, setStocks] = useState([]);
+  const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
-
-    const q = query(
-      collection(db, 'users', user.uid, 'stocks'),
-      orderBy('createdAt', 'desc')
-    );
-
+    const q = query(collection(db, 'users', user.uid, 'stocks'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setStocks(data);
       setLoading(false);
+      loadPrices(data);
     });
-
     return unsubscribe;
   }, []);
+
+  const loadPrices = async (stockList) => {
+    const newPrices = {};
+    for (const stock of stockList) {
+      const price = await fetchPrice(stock.ticker);
+      if (price) newPrices[stock.ticker] = price;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    setPrices(prev => ({ ...prev, ...newPrices }));
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    Object.keys(priceCache).forEach(k => delete priceCache[k]);
+    await loadPrices(stocks);
+    setRefreshing(false);
+  }, [stocks]);
 
   const addStock = async () => {
     if (!ticker || !targetPrice) {
@@ -51,6 +82,35 @@ export default function HomeScreen({ navigation }) {
   const logout = async () => {
     await signOut(auth);
     navigation.replace('Login');
+  };
+
+  const renderStock = ({ item }) => {
+    const currentPrice = prices[item.ticker];
+    const reached = currentPrice && currentPrice >= item.targetPrice;
+    const diff = currentPrice ? (((currentPrice - item.targetPrice) / item.targetPrice) * 100).toFixed(1) : null;
+
+    return (
+      <View style={[styles.stockItem, reached && styles.stockReached]}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.stockTicker}>{item.ticker}</Text>
+            {reached && <Text style={styles.reachedBadge}>🎯 Célár elérve!</Text>}
+          </View>
+          <Text style={styles.targetPrice}>Célár: ${item.targetPrice}</Text>
+          {currentPrice ? (
+            <Text style={[styles.currentPrice, { color: reached ? '#34C759' : '#007AFF' }]}>
+              Jelenlegi: ${currentPrice.toFixed(2)}
+              {diff && <Text style={{ color: parseFloat(diff) >= 0 ? '#34C759' : '#FF3B30' }}> ({diff}%)</Text>}
+            </Text>
+          ) : (
+            <Text style={styles.loadingPrice}>Árfolyam betöltése...</Text>
+          )}
+        </View>
+        <TouchableOpacity onPress={() => deleteStock(item.id)} style={styles.deleteButton}>
+          <Text style={styles.deleteText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   return (
@@ -86,20 +146,9 @@ export default function HomeScreen({ navigation }) {
         <FlatList
           data={stocks}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.stockItem}>
-              <View>
-                <Text style={styles.stockTicker}>{item.ticker}</Text>
-                <Text style={styles.stockPrice}>Célár: ${item.targetPrice}</Text>
-              </View>
-              <TouchableOpacity onPress={() => deleteStock(item.id)} style={styles.deleteButton}>
-                <Text style={styles.deleteText}>🗑️</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>Még nincs részvény hozzáadva. ☝️</Text>
-          }
+          renderItem={renderStock}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={<Text style={styles.empty}>Még nincs részvény hozzáadva. ☝️</Text>}
         />
       )}
     </View>
@@ -114,9 +163,13 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 10, fontSize: 16, backgroundColor: '#fff' },
   addButton: { backgroundColor: '#007AFF', padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  stockItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderRadius: 10, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  stockItem: { padding: 16, backgroundColor: '#fff', borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  stockReached: { backgroundColor: '#f0fff4', borderWidth: 1, borderColor: '#34C759' },
   stockTicker: { fontSize: 18, fontWeight: 'bold' },
-  stockPrice: { fontSize: 14, color: '#666', marginTop: 2 },
+  reachedBadge: { fontSize: 12, color: '#34C759', fontWeight: '600' },
+  targetPrice: { fontSize: 14, color: '#666', marginTop: 2 },
+  currentPrice: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  loadingPrice: { fontSize: 14, color: '#999', marginTop: 2 },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 20 },
   empty: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 }

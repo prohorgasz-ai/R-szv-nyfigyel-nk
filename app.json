@@ -1,22 +1,12 @@
 {
   "expo": {
-    "name": "Részvényfigyelő",
+    "name": "Reszvenyfigyelo",
     "slug": "reszvenyfigyelo",
     "version": "1.0.0",
     "orientation": "portrait",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.benedek.reszvenyfigyelo",
-      "googleServicesFile": "./GoogleService-Info.plist"
-    },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#4CAF50"
-        }
-      ]
-    ]
+      "bundleIdentifier": "com.benedek.reszvenyfigyelo"
+    }
   }
 }

@@ -1,15 +1,24 @@
 {
   "name": "reszvenyfigyelo",
   "version": "1.0.0",
-  "main": "App.js",
-  "scripts": { "start": "expo start" },
-  "dependencies": {
-    "expo": "50.0.0",
-    "expo-status-bar": "~1.11.1",
-    "firebase": "^10.14.0",
-    "react": "18.2.0",
-    "react-native": "0.73.6"
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start"
   },
-  "devDependencies": { "@babel/core": "^7.20.0" },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/native": "^7.1.30",
+    "@react-navigation/native-stack": "^7.14.1",
+    "expo": "~54.0.0",
+    "expo-status-bar": "~3.0.9",
+    "firebase": "^12.9.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "^5.6.0",
+    "react-native-screens": "^4.16.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2"
+  },
   "private": true
 }

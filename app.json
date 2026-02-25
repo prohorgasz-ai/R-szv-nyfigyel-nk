@@ -3,10 +3,6 @@
     "name": "Reszvenyfigyelo",
     "slug": "reszvenyfigyelo",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.benedek.reszvenyfigyelo"
-    }
+    "scheme": "reszvenyfigyelo"
   }
 }

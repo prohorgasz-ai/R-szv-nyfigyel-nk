@@ -1,7 +1,9 @@
 const CACHE = {};
 const CACHE_TTL = 5 * 60 * 1000;
 
-const fetchWithTimeout = (url, timeout = 5000) => {
+const FINNHUB_KEY = 'd6b2nk9r01qnr27jesl0d6b2nk9r01qnr27jeslg';
+
+const fetchWithTimeout = (url, timeout = 6000) => {
   return Promise.race([
     fetch(url),
     new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout))
@@ -15,18 +17,18 @@ export const fetchPrice = async (ticker) => {
   }
   try {
     const res = await fetchWithTimeout(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`,
-      5000
+      `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`,
+      6000
     );
     const json = await res.json();
-    const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const price = json?.c || null;
     if (price) {
       CACHE[ticker] = { price, ts: now };
       return price;
     }
-    return CACHE[ticker]?.price || null; // fallback régi cache-re
+    return CACHE[ticker]?.price || null;
   } catch {
-    return CACHE[ticker]?.price || null; // timeout esetén régi cache
+    return CACHE[ticker]?.price || null;
   }
 };
 

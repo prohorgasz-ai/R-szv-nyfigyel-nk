@@ -1,5 +1,12 @@
 const CACHE = {};
-const CACHE_TTL = 5 * 60 * 1000; // 5 perc
+const CACHE_TTL = 5 * 60 * 1000;
+
+const fetchWithTimeout = (url, timeout = 5000) => {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout))
+  ]);
+};
 
 export const fetchPrice = async (ticker) => {
   const now = Date.now();
@@ -7,28 +14,27 @@ export const fetchPrice = async (ticker) => {
     return CACHE[ticker].price;
   }
   try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`);
+    const res = await fetchWithTimeout(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`,
+      5000
+    );
     const json = await res.json();
     const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
     if (price) {
       CACHE[ticker] = { price, ts: now };
       return price;
     }
-    return null;
+    return CACHE[ticker]?.price || null; // fallback régi cache-re
   } catch {
-    return null;
+    return CACHE[ticker]?.price || null; // timeout esetén régi cache
   }
 };
 
 export const fetchExchangeRates = async () => {
   try {
-    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=HUF,EUR');
+    const res = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=HUF,EUR', 5000);
     const json = await res.json();
-    return {
-      USD: 1,
-      HUF: json.rates.HUF,
-      EUR: json.rates.EUR
-    };
+    return { USD: 1, HUF: json.rates.HUF, EUR: json.rates.EUR };
   } catch {
     return { USD: 1, HUF: 390, EUR: 0.92 };
   }

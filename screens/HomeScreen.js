@@ -27,13 +27,24 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const loadPrices = async (stockList) => {
-    const newPrices = {};
     const tickers = [...new Set(stockList.map(s => s.ticker))];
-    for (const ticker of tickers) {
-      const price = await fetchPrice(ticker);
-      if (price) newPrices[ticker] = price;
-      await new Promise(r => setTimeout(r, 100));
-    }
+    
+    // Párhuzamos hívások, 3 másodperces timeout tickerenként
+    const results = await Promise.allSettled(
+      tickers.map(ticker =>
+        Promise.race([
+          fetchPrice(ticker),
+          new Promise((_, reject) => setTimeout(() => reject('timeout'), 3000))
+        ])
+      )
+    );
+
+    const newPrices = {};
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled' && result.value) {
+        newPrices[tickers[i]] = result.value;
+      }
+    });
     setPrices(prev => ({ ...prev, ...newPrices }));
   };
 
@@ -80,7 +91,7 @@ export default function HomeScreen({ navigation }) {
               {profit >= 0 ? '+' : ''}{formatCurrency(convertPrice(profit, currency, rates), currency)} ({profitPct}%)
             </Text>
           </View>
-          <Text style={styles.stockDetail}>{formatQuantity(totalQty)} db @ {currentPrice ? formatCurrency(convertPrice(currentPrice, currency, rates), currency) : '...'}</Text>
+          <Text style={styles.stockDetail}>{formatQuantity(totalQty)} db @ {currentPrice ? formatCurrency(convertPrice(currentPrice, currency, rates), currency) : '⏳ tölt...'}</Text>
           <Text style={styles.stockDetail}>Befektetve: {formatCurrency(convertPrice(netInvested, currency, rates), currency)}</Text>
         </View>
         <Text style={styles.arrow}>›</Text>

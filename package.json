@@ -2,19 +2,14 @@
   "name": "reszvenyfigyelo",
   "version": "1.0.0",
   "main": "App.js",
-  "scripts": {
-    "start": "expo start"
-  },
+  "scripts": { "start": "expo start" },
   "dependencies": {
-    "expo": "~54.0.0",
-    "expo-status-bar": "~2.0.0",
-    "expo-notifications": "~0.29.0",
+    "expo": "50.0.0",
+    "expo-status-bar": "~1.11.1",
     "firebase": "^10.14.0",
-    "react": "18.3.1",
-    "react-native": "0.76.3"
+    "react": "18.2.0",
+    "react-native": "0.73.6"
   },
-  "devDependencies": {
-    "@babel/core": "^7.25.0"
-  },
+  "devDependencies": { "@babel/core": "^7.20.0" },
   "private": true
 }
